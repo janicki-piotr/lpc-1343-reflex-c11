@@ -16,9 +16,9 @@ typedef enum
     LIGHT_RANGE_64000
 } light_range_t;
 
-void light_init (void);
 void light_enable (void);
+uint32_t light_read (void);
 void light_setRange(light_range_t newRange);
-
+void intToString(int value, uint8_t* pBuf, uint32_t len, uint32_t base);
 
 #endif /* FUNKCJE_LIGHT_H_ */

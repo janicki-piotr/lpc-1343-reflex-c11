@@ -1,9 +1,3 @@
-/*
- * funkcje_light.c
- *
- *  Created on: 20 lis 2017
- *      Author: A
- */
 #include "mcu_regs.h"
 #include "type.h"
 #include "funkcje_i2c.h"
@@ -32,9 +26,7 @@
 #define CTRL_IRQ_PERSIST(p) ((p) << 0)
 #define CTRL_IRQ_FLAG       (1 << 5)
 
-/*
- * The Range (k) values are based on Rext = 100k
- */
+ /* The Range (k) values are based on Rext = 100k */
 #define RANGE_K1   973
 #define RANGE_K2  3892
 #define RANGE_K3 15568
@@ -48,20 +40,23 @@
 static uint32_t range = RANGE_K1;
 static uint32_t width = WIDTH_16_VAL;
 
-void light_init(void)
-{
-	/* nothing to initialize. light_enable enables the sensor */
-}
 
+/*****************************************************************************
+** Function name:		light_enable
+**
+** Descriptions:		Enable the ISL29003 Device.
+**
+** Parameters:			None
+*****************************************************************************/
 void light_enable(void)
 {
-	uint8_t buf[2];
-	buf[0] = ADDR_CMD;
-	buf[1] = CMD_ENABLE;
-	I2CWrite(LIGHT_I2C_ADDR, buf, 2);
+    uint8_t buf[2];
+    buf[0] = ADDR_CMD;
+    buf[1] = CMD_ENABLE;
+    I2CWrite(LIGHT_I2C_ADDR, buf, 2);
 
-	range = RANGE_K1;
-	width = WIDTH_16_VAL;
+    range = RANGE_K1;
+    width = WIDTH_16_VAL;
 }
 
 static uint8_t readControlReg(void)
@@ -72,35 +67,128 @@ static uint8_t readControlReg(void)
 
     I2CRead(LIGHT_I2C_ADDR, buf, 1);
 
-    return buf[0];
+    return (buf[0]);
 }
 
+/*****************************************************************************
+** Function name:		light_read
+**
+** Descriptions:		Read and returns light sensor value (in Lux)
+**
+** Parameters:			None
+*****************************************************************************/
+uint32_t light_read(void)
+{
+    uint32_t data = 0;
+    uint8_t buf[1];
+
+    buf[0] = ADDR_LSB_SENSOR;
+    I2CWrite(LIGHT_I2C_ADDR, buf, 1);
+    I2CRead(LIGHT_I2C_ADDR, buf, 1);
+
+    data = buf[0];
+
+    buf[0] = ADDR_MSB_SENSOR;
+    I2CWrite(LIGHT_I2C_ADDR, buf, 1);
+    I2CRead(LIGHT_I2C_ADDR, buf, 1);
+
+    data = (buf[0] << 8 | data);
+
+    return (range*data / width);
+}
+
+/*****************************************************************************
+** Function name:		light_setRange
+**
+** Descriptions:		Set new gain/range
+**
+** Parameters:			newRange  - new gain/range
+*****************************************************************************/
 void light_setRange(light_range_t newRange)
 {
-	uint8_t buf[2];
-	uint8_t ctrl = readControlReg();
+    uint8_t buf[2];
+    uint8_t ctrl = readControlReg();
 
-	/* clear range */
-	ctrl &= ~(3 << 2);
+    /* clear range */
+    ctrl &= ~(3 << 2);
 
-	ctrl |= CTRL_GAIN(newRange);
+    ctrl |= CTRL_GAIN(newRange);
 
-	buf[0] = ADDR_CTRL;
-	buf[1] = ctrl;
-	I2CWrite(LIGHT_I2C_ADDR, buf, 2);
+    buf[0] = ADDR_CTRL;
+    buf[1] = ctrl;
+    I2CWrite(LIGHT_I2C_ADDR, buf, 2);
 
-	switch (newRange) {
-	case LIGHT_RANGE_1000:
-		range = RANGE_K1;
-		break;
-	case LIGHT_RANGE_4000:
-		range = RANGE_K2;
-		break;
-	case LIGHT_RANGE_16000:
-		range = RANGE_K3;
-		break;
-	case LIGHT_RANGE_64000:
-		range = RANGE_K4;
-		break;
-	}
+    switch (newRange)
+    {
+    case LIGHT_RANGE_1000:
+        range = RANGE_K1;
+        break;
+    case LIGHT_RANGE_4000:
+        range = RANGE_K2;
+        break;
+    case LIGHT_RANGE_16000:
+        range = RANGE_K3;
+        break;
+    case LIGHT_RANGE_64000:
+        range = RANGE_K4;
+        break;
+    }
+}
+
+/*****************************************************************************
+** Function name:		intToString
+**
+** Descriptions: 	Converts int into string
+*****************************************************************************/
+void intToString(int value, uint8_t* pBuf, uint32_t len, uint32_t base)
+{
+    static const char* pAscii = "0123456789abcdefghijklmnopqrstuvwxyz";
+    int pos = 0;
+    int tmpValue = value;
+
+    /* the buffer must not be null and at least have a length of 2 to handle one */
+    /* digit and null-terminator */
+    if (pBuf == NULL || len < 2)
+    {
+        return;
+    }
+
+    /* a valid base cannot be less than 2 or larger than 36 */
+    /* a base value of 2 means binary representation. A value of 1 would mean only zeros */
+    /* a base larger than 36 can only be used if a larger alphabet were used. */
+    if (base < 2 || base > 36)
+    {
+        return;
+    }
+
+    /* negative value */
+    if (value < 0)
+    {
+        tmpValue = -tmpValue;
+        value    = -value;
+        pBuf[pos++] = '-';
+    }
+
+    /* calculate the required length of the buffer */
+    do {
+        pos++;
+        tmpValue /= base;
+    } while(tmpValue > 0);
+
+
+    if (pos > len)
+    {
+    	/* the len parameter is invalid. */
+        return;
+    }
+
+    pBuf[pos] = '\0';
+
+    do {
+        pBuf[--pos] = pAscii[value % base];
+        value /= base;
+    } while(value > 0);
+
+    return;
+
 }

@@ -3,22 +3,21 @@
 
 #define SystemFrequency SystemCoreClock
 
+
 /*****************************************************************************
- ** Function name:		UART_init
+ ** Function name:		UARTInit
  **
  ** Descriptions:		Initialize UART0 port, setup pin select,
  **				clock, parity, stop bits, FIFO, etc.
  **
  ** parameters:			UART baudrate
- ** Returned value:		None
+ **
  **
  *****************************************************************************/
-void UART_init(uint32_t baudrate)
+void UARTInit(uint32_t baudrate)
 {
     uint32_t Fdiv;
     uint32_t regVal;
-
-    NVIC_DisableIRQ(UART_IRQn);
 
     LPC_IOCON->PIO1_6 &= ~0x07;    /*  UART I/O config */
     LPC_IOCON->PIO1_6 |= 0x01;     /* UART RXD */
@@ -47,6 +46,10 @@ void UART_init(uint32_t baudrate)
     {
         regVal = LPC_UART->RBR;	/* Dump data from RX FIFO */
     }
+
+    /* Enable the UART Interrupt */
+
+
     return;
 }
 
@@ -61,8 +64,7 @@ void UART_init(uint32_t baudrate)
  *****************************************************************************/
 void UARTSendString(uint8_t *string)
 {
-    if (!string)
-    {
+    if (!string) {
         /* error */
         return;
     }
@@ -75,5 +77,6 @@ void UARTSendString(uint8_t *string)
 
         string++;
     }
+
     return;
 }
